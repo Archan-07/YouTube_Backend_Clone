@@ -4,6 +4,23 @@ import { User } from "../models/user.model.js";
 import { uploadOnCloudinary } from "../utils/Cloudinary.js";
 import apiResponse from "../utils/ApiResponse.js";
 
+const generateAccessAndRefreshTokens = async (userId) => {
+  try {
+    const user = await User.findById(userId);
+    const accessToken = user.generateAccessToken();
+    const refreshToken = user.generateRefreshToken();
+
+    user.refreshToken = refreshToken;
+    await user.save({
+      validateBeforeSave: false,
+    });
+
+    return { accessToken, refreshToken };
+  } catch (error) {
+    throw new apiError(500, "Access and Refresh Tokens are not generated");
+  }
+};
+
 const registerUser = asyncHandler(async (req, res) => {
   // get user details from frontend
 
@@ -99,4 +116,107 @@ const registerUser = asyncHandler(async (req, res) => {
     .json(new apiResponse(200, createdUser, "User registered successfully"));
 });
 
-export default registerUser;
+const loginUser = asyncHandler(async (req, res) => {
+  // Get the data from the front-end
+
+  const { email, password, username } = req.body;
+
+  // check the fields are not empty
+  if (!username || !email) {
+    throw apiError(400, "Username of Email is required");
+  }
+  if (password.trim() === "") {
+    throw apiError(400, "Password is required");
+  }
+
+  // Email validation
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    throw new apiError(400, "Invalid email format");
+  }
+
+  // Password validation
+  // At least 8 characters, 1 uppercase, 1 lowercase, 1 number, 1 special character
+  const passwordRegex =
+    /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+
+  if (!passwordRegex.test(password)) {
+    throw new apiError(
+      400,
+      "Password must be at least 8 characters long and include uppercase, lowercase, number, and special character"
+    );
+  }
+
+  // check if user already exists : using email and username
+  // User.findOne get the first data from the database which is provided into the parameter
+  // $or is operator which checks the value provided into the array
+
+  const user = await User.findOne({
+    $or: [{ email }, { username }],
+  });
+
+  if (!user) {
+    throw apiError(404, "User doesn't exists");
+  }
+
+  // if user exists check password
+  const isPasswordValid = await user.isPasswordCorrect(password);
+
+  if (!isPasswordValid) {
+    throw apiError(401, "Incorrect password");
+  }
+  // access and refresh token
+  const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(
+    user._id
+  );
+  // send cookies
+
+  const loggedInUser = User.findById(user._id).select(
+    "-password -refreshToken"
+  );
+
+  const options = {
+    httpOnly: true,
+    secure: true,
+  };
+
+  return res
+    .status(200)
+    .cookie("accessToken", accessToken, options)
+    .cookie("refreshToken", refreshToken, options)
+    .json(
+      new apiResponse(
+        200,
+        {
+          user: loggedInUser,
+          accessToken,
+          refreshToken,
+        },
+        "User logged in successfully"
+      )
+    );
+});
+
+const logOutUser = asyncHandler(async (req, res) => {
+  await User.findByIdAndUpdate(
+    req.user._id,
+    {
+      $set: { refreshToken: undefined },
+    },
+    {
+      new: true,
+    }
+  );
+  const options = {
+    httpOnly: true,
+    secure: true,
+  };
+
+  return res
+    .status(200)
+    .clearCookie("accessToken", options)
+    .clearCookie("refreshToken", options)
+    .json(new apiResponse(200, {}, "User Logged Out successfully"));
+});
+
+export { registerUser, loginUser, logOutUser };
