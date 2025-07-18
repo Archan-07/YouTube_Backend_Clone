@@ -3,6 +3,7 @@ import apiError from "../utils/ApiErrors.js";
 import { User } from "../models/user.model.js";
 import { uploadOnCloudinary } from "../utils/Cloudinary.js";
 import apiResponse from "../utils/ApiResponse.js";
+import jwt from "jsonwebtoken";
 
 const generateAccessAndRefreshTokens = async (userId) => {
   try {
@@ -118,33 +119,21 @@ const registerUser = asyncHandler(async (req, res) => {
 
 const loginUser = asyncHandler(async (req, res) => {
   // Get the data from the front-end
-
+  console.log(req.body);
   const { email, password, username } = req.body;
 
   // check the fields are not empty
-  if (!username || !email) {
-    throw apiError(400, "Username of Email is required");
+  if (!(username || email)) {
+    throw new apiError(400, "Username of Email is required");
   }
   if (password.trim() === "") {
-    throw apiError(400, "Password is required");
+    throw new apiError(400, "Password is required");
   }
 
   // Email validation
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailRegex.test(email)) {
+  if (email && !emailRegex.test(email)) {
     throw new apiError(400, "Invalid email format");
-  }
-
-  // Password validation
-  // At least 8 characters, 1 uppercase, 1 lowercase, 1 number, 1 special character
-  const passwordRegex =
-    /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
-
-  if (!passwordRegex.test(password)) {
-    throw new apiError(
-      400,
-      "Password must be at least 8 characters long and include uppercase, lowercase, number, and special character"
-    );
   }
 
   // check if user already exists : using email and username
@@ -156,14 +145,14 @@ const loginUser = asyncHandler(async (req, res) => {
   });
 
   if (!user) {
-    throw apiError(404, "User doesn't exists");
+    throw new apiError(404, "User doesn't exists");
   }
 
   // if user exists check password
   const isPasswordValid = await user.isPasswordCorrect(password);
 
   if (!isPasswordValid) {
-    throw apiError(401, "Incorrect password");
+    throw new apiError(401, "Incorrect password");
   }
   // access and refresh token
   const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(
@@ -171,7 +160,7 @@ const loginUser = asyncHandler(async (req, res) => {
   );
   // send cookies
 
-  const loggedInUser = User.findById(user._id).select(
+  const loggedInUser = await User.findById(user._id).select(
     "-password -refreshToken"
   );
 
@@ -219,4 +208,53 @@ const logOutUser = asyncHandler(async (req, res) => {
     .json(new apiResponse(200, {}, "User Logged Out successfully"));
 });
 
-export { registerUser, loginUser, logOutUser };
+const refreshAccessToken = asyncHandler(async (req, res) => {
+  const inCommingRefreshToken =
+    req.cookies.refreshToken || req.body.refreshToken;
+  if (!inCommingRefreshToken) {
+    throw new apiError(401, "Unauthorized request");
+  }
+
+  try {
+    const decodedToken = jwt.verify(
+      inCommingRefreshToken,
+      process.env.REFRESH_TOKEN_SECRET
+    );
+
+    const user = await User.findById(decodedToken?._id);
+    if (!user) {
+      throw new apiError(401, "Invalid refresh token");
+    }
+
+    if (inCommingRefreshToken !== user?.refreshToken) {
+      throw new apiError(401, "Refresh token is invalid or expired");
+    }
+
+    const options = {
+      httpOnly: true,
+      secure: true,
+    };
+
+    const { accessToken, newrefreshToken } =
+      await generateAccessAndRefreshTokens(user._id);
+
+    res
+      .status(200)
+      .cookie("accessToken", accessToken, options)
+      .cookie("refreshToken", newrefreshToken, options)
+      .json(
+        new apiResponse(
+          200,
+          {
+            accessToken,
+            newrefreshToken,
+          },
+          "Access Token Refreshed"
+        )
+      );
+  } catch (error) {
+    throw new apiError(401, error?.message || "Invalid refresh token");
+  }
+});
+
+export { registerUser, loginUser, logOutUser, refreshAccessToken };
