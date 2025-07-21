@@ -191,7 +191,7 @@ const logOutUser = asyncHandler(async (req, res) => {
   await User.findByIdAndUpdate(
     req.user._id,
     {
-      $set: { refreshToken: undefined },
+      $unset: { refreshToken: 1 },
     },
     {
       new: true,
@@ -210,13 +210,12 @@ const logOutUser = asyncHandler(async (req, res) => {
 });
 
 const refreshAccessToken = asyncHandler(async (req, res) => {
-  const inCommingRefreshToken =
-    req.cookies.refreshToken || req.body.refreshToken;
-  if (!inCommingRefreshToken) {
-    throw new apiError(401, "Unauthorized request");
-  }
-
   try {
+    const inCommingRefreshToken =
+      req.cookies.refreshToken || req.body.refreshToken;
+    if (!inCommingRefreshToken) {
+      throw new apiError(401, "Unauthorized request");
+    }
     const decodedToken = jwt.verify(
       inCommingRefreshToken,
       process.env.REFRESH_TOKEN_SECRET
@@ -281,13 +280,13 @@ const changeCurrentUserPassword = asyncHandler(async (req, res) => {
 const getCurrentUser = asyncHandler(async (req, res) => {
   return res
     .status(200)
-    .json(200, req.user, "Current user fetched successfully");
+    .json(new apiResponse(200, req.user, "Current user fetched successfully"));
 });
 
 const updateUserDetails = asyncHandler(async (req, res) => {
   const { fullName, email } = req.body;
 
-  const user = User.findByIdAndUpdate(
+  const user = await User.findByIdAndUpdate(
     req.user._id,
     {
       $set: {
