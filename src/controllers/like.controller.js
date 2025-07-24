@@ -3,7 +3,6 @@ import { Like } from "../models/like.model.js";
 import apiError from "../utils/ApiErrors.js";
 import apiResponse from "../utils/ApiResponse.js";
 import asyncHandler from "../utils/asyncHandler.js";
-import e from "express";
 
 const toggleVideoLike = asyncHandler(async (req, res) => {
   const { videoId } = req.params;
