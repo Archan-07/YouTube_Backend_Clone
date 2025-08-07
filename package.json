@@ -5,8 +5,8 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "dev": "nodemon -r dotenv/config --experimental-json-modules mongodb-backend/src/index.js",
-    "devStart": "nodemon -r dotenv/config --experimental-json-modules  postgres-backend/src/index.js"
+    "dev:mongo": "nodemon -r dotenv/config --experimental-json-modules mongodb-backend/src/index.js",
+    "dev:postgres": "nodemon -r dotenv/config --experimental-json-modules  postgres-backend/src/index.js"
   },
   "keywords": [
     "javaScript",
