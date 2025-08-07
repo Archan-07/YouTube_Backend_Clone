@@ -18,7 +18,7 @@ const playlistSchema = new mongoose.Schema(
     ],
     owner: {
       type: mongoose.Schema.Types.ObjectId,
-      reef: "User",
+      ref: "User",
     },
   },
   { timestamps: true }

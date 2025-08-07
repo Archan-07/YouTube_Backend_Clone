@@ -1,0 +1,172 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String  @id @default(cuid()) // Changed to CUID for better indexing than UUID
+  username     String  @unique
+  email        String  @unique
+  fullName     String
+  avatar       String // cloudinary url
+  coverImage   String? // Optional field
+  password     String
+  refreshToken String?
+
+  // --- Relationships ---
+  videos        Video[]
+  tweets        Tweet[]
+  comments      Comment[]
+  likes         Like[]
+  playlists     Playlist[]
+  watchHistory  WatchHistory[] // Explicit many-to-many for watch history
+  subscriptions Subscription[] @relation("subscriber_relations") // Channels this user is subscribed to
+  subscribers   Subscription[] @relation("channel_relations") // Users who subscribe to this user
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([username])
+  @@index([fullName])
+}
+
+model Video {
+  id          String  @id @default(cuid())
+  videoFile   String // cloudinary url
+  thumbnail   String // cloudinary url
+  title       String
+  description String
+  duration    Float
+  views       Int     @default(0)
+  isPublished Boolean @default(true) // Corrected from `false` to match mongoose schema
+
+  // --- Relationships ---
+  owner        User            @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  ownerId      String // Foreign Key
+  comments     Comment[]
+  likes        Like[]
+  watchHistory WatchHistory[] // Back-relation for watch history
+  playlists    PlaylistVideo[] // Explicit many-to-many with Playlist
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Explicit Join Table for User's Watch History (Many-to-Many)
+model WatchHistory {
+  id        String   @id @default(cuid())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  video     Video    @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  videoId   String
+  watchedAt DateTime @default(now()) // Extra metadata you can now track
+
+  @@unique([userId, videoId]) // A user can have a video in history only once
+}
+
+model Subscription {
+  id String @id @default(cuid())
+
+  // The user who is subscribing
+  subscriber   User   @relation("subscriber_relations", fields: [subscriberId], references: [id], onDelete: Cascade)
+  subscriberId String
+
+  // The user who is being subscribed to (the channel)
+  channel   User   @relation("channel_relations", fields: [channelId], references: [id], onDelete: Cascade)
+  channelId String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Added unique constraint for data integrity
+  @@unique([subscriberId, channelId])
+}
+
+model Tweet {
+  id      String @id @default(cuid())
+  content String
+
+  // --- Relationships ---
+  owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  ownerId String // Foreign Key
+  likes   Like[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Comment {
+  id      String @id @default(cuid())
+  content String
+
+  // --- Relationships ---
+  video   Video  @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  videoId String // Foreign Key
+  owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  ownerId String // Foreign Key
+  likes   Like[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Like {
+  id String @id @default(cuid())
+
+  // --- Relationships for Polymorphic "Like" ---
+  // A like must belong to ONE of these. Nullable fields allow this.
+  video     Video?   @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  videoId   String?
+  comment   Comment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  commentId String?
+  tweet     Tweet?   @relation(fields: [tweetId], references: [id], onDelete: Cascade)
+  tweetId   String?
+
+  likedBy   User   @relation(fields: [likedById], references: [id], onDelete: Cascade)
+  likedById String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt // Added missing updatedAt field
+
+  // Ensures a user can only like a specific piece of content once
+  @@unique([videoId, likedById])
+  @@unique([commentId, likedById])
+  @@unique([tweetId, likedById])
+}
+
+model Playlist {
+  id          String @id @default(cuid())
+  name        String
+  description String
+
+  // --- Relationships ---
+  owner   User            @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  ownerId String
+  videos  PlaylistVideo[] // Explicit many-to-many relationship with Video
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Explicit Join Table for Playlist and Video (Many-to-Many)
+model PlaylistVideo {
+  id         String   @id @default(cuid())
+  playlist   Playlist @relation(fields: [playlistId], references: [id], onDelete: Cascade)
+  playlistId String
+  video      Video    @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  videoId    String
+  addedAt    DateTime @default(now())
+
+  @@unique([playlistId, videoId]) // Prevents adding the same video to a playlist twice
+}

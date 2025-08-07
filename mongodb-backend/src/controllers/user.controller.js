@@ -238,7 +238,7 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
     const { accessToken, newrefreshToken } =
       await generateAccessAndRefreshTokens(user._id);
 
-    res
+   return res
       .status(200)
       .cookie("accessToken", accessToken, options)
       .cookie("refreshToken", newrefreshToken, options)
