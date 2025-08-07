@@ -1,30 +1,38 @@
 # 🎬 YouTube Backend Clone
 
-This project is a **backend API clone of YouTube**, built using **Node.js**, **Express**, and **MongoDB**, offering core video platform features such as authentication, video uploads, likes, comments, playlists, and subscriptions.
+This project is a **backend API clone of YouTube**, built with **Node.js** and **Express.js**. It uniquely showcases a **monorepo architecture** that includes two distinct database implementations: one using **MongoDB** (NoSQL) and another using **PostgreSQL** (SQL). It offers core video platform features such as authentication, video uploads, likes, comments, playlists, and subscriptions.
 
-## 🚀 Features
+---
 
-- ✅ User registration & login with JWT authentication
-- 📁 Video upload with thumbnail (Cloudinary integration)
-- 📊 Channel stats: views, likes, subscribers, videos
-- 👍 Like/Unlike videos
-- 💬 Comment on videos
-- 📺 Playlist creation, add/remove videos to playlists
-- 🔔 Subscribe/Unsubscribe to channels
-- 🔒 Protected routes via JWT middleware
-- 📄 Aggregated data for dashboards (likes, views, etc.)
-- 🗂️ Pagination and filtering for videos and comments
+## 🚀 Key Features
+
+* **Dual Database Support**: Demonstrates a flexible backend architecture with two distinct database implementations:
+    * **NoSQL Backend**: Powered by **MongoDB** and **Mongoose**.
+    * **SQL Backend**: Powered by **PostgreSQL** and **Prisma ORM**.
+* User registration & login with JWT authentication.
+* Video upload with thumbnail (Cloudinary integration for secure and scalable media management).
+* Channel statistics: views, likes, subscribers, videos.
+* User interaction features: Like/Unlike videos, Comment on videos, Subscribe/Unsubscribe to channels.
+* Playlist management: creation, adding/removing videos.
+* Protected routes via JWT middleware.
+* Aggregated data for dashboards (likes, views, etc.).
+* Pagination and filtering for videos and comments.
 
 ---
 
 ## 🧑‍💻 Tech Stack
 
-- **Backend**: Node.js, Express.js
-- **Database**: MongoDB + Mongoose
-- **Authentication**: JWT (JSON Web Tokens)
-- **File Uploads**: Multer
-- **Media Storage**: Cloudinary
-- **Others**: dotenv, bcrypt, async-handler
+* **Backend**: Node.js, Express.js
+* **Databases**:
+    * **NoSQL**: MongoDB + Mongoose (for object data modeling)
+    * **SQL**: PostgreSQL + Prisma (for ORM and database management)
+* **Authentication**: JWT (JSON Web Tokens)
+* **File Uploads**: Multer
+* **Media Storage**: Cloudinary
+* **Utilities**:
+    * `dotenv`: For managing environment variables.
+    * `bcrypt`: For secure password hashing.
+    * `async-handler`: For simplified error handling in asynchronous Express routes.
 
 ---
 
@@ -50,10 +58,19 @@ Create a .env file and add the following:
 - CLOUDINARY_CLOUD_NAME=your_cloudinary_cloud_name
 - CLOUDINARY_API_KEY=your_cloudinary_api_key
 - CLOUDINARY_API_SECRET=your_cloudinary_api_secret
+* **MongoDB Backend Specific**
+  *  MONGODB_URI=mongodb://localhost:27017/youtube-clone-mongo # or your Atlas connection string
+* **PostgreSQL Backend Specific**
+  * DATABASE_URL="postgresql://your_user:your_password@localhost:5432/your_database_name?schema=public"
 
 ### 4. Start the server
+- MongoDB Backend Specific
 ```bash
-npm run dev
+npm run dev:mongo
+```
+- PostgreSQL Backend Specific
+```bash
+npm run dev:postgres
 ```
 
 ## 🧪 API Endpoints
